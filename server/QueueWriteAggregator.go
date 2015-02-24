@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	//"runtime"
+	"code.google.com/p/forestbus.server/commitlog"
 	"code.google.com/p/forestbus.server/utils"
 	"sync"
 	"time"
@@ -12,7 +13,8 @@ import (
 const DEFAULT_MAX_BATCH_AGGREGATION = 1500
 
 // DEFAULT_TRIGGER_TOTAL_AGGREGATED_MESSAGES is the default trigger point beyond which we stop aggegating and do a send to the commit log
-const DEFAULT_TRIGGER_TOTAL_AGGREGATED_MESSAGES = 12000
+// This is set to the maximum number of messages that a leader sends to followers in one go
+const DEFAULT_TRIGGER_TOTAL_AGGREGATED_MESSAGES = commitlog.MAX_RETRIEVE_MESSAGE_COUNT
 
 // DEFAULT_AGGREGATION_WINDOW is the default amount of time to wait on additional messages arriving for aggregation prior to writing.
 const DEFAULT_AGGREGATION_WINDOW = time.Millisecond * 3

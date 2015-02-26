@@ -492,7 +492,7 @@ func (node *Node) ChangePeerConfiguration(newPeers ConfigPeers) {
 	for _, peerName := range newPeers {
 		if _, ok := node.peers[peerName]; !ok {
 			if peerName != node.name {
-				node.node_log("Adding peer %v to configuration\n", node.topic, peerName)
+				node.node_log("Adding peer %v to configuration\n", peerName)
 				newPeer := &Peer{}
 				newPeer.Name = peerName
 				newPeer.sendMessage = make(chan Command)

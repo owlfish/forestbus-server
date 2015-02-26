@@ -40,7 +40,7 @@ func (store *DiskTopicPersistentStore) SetTerm(term int64, votedFor string) (err
 	data, err := json.Marshal(store)
 
 	if err != nil {
-		log.Printf("Error creating json for path %v: %v\n", err)
+		log.Printf("Error creating json for path %v: %v\n", store.path, err)
 		return err
 	}
 
@@ -72,13 +72,15 @@ func (store *DiskTopicPersistentStore) Load() (term int64, votedFor string, err 
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
 		log.Printf("DISKLOG-Error reading topic store information at path %v: %v\n", store.path, err)
-		return 0, "", err
+		log.Printf("Will default to 0 term and no vote.")
+		return 0, "", nil
 	}
 
 	err = json.Unmarshal(data, store)
 	if err != nil {
-		log.Printf("Error reading json for path %v: %v\n", err)
-		return 0, "", err
+		log.Printf("Error reading json for path %v: %v\n", store.path, err)
+		log.Printf("Will default to 0 term and no vote.")
+		return 0, "", nil
 	}
 
 	return store.Term, store.VotedFor, nil

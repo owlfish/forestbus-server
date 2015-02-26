@@ -343,7 +343,7 @@ type NodeInfo struct {
 /*
 StartNode starts up the Raft node implementation for a given topic.  The connections are managed by the ServerNode.  The Node provides methods that are used by the RPCHandler for interaction with the commit log.
 */
-func (node *Node) StartNode(topic string, server *ServerNode, ourName string, ourPeers ConfigPeers, ourLog *commitlog.CommitLog, topicStore TopicPersistentStore) error {
+func (node *Node) SetupNode(topic string, server *ServerNode, ourName string, ourPeers ConfigPeers, ourLog *commitlog.CommitLog, topicStore TopicPersistentStore) error {
 	// Create the shutdown channel
 	node.shutdownServer = make(chan string)
 	node.node_log = utils.GetTopicLogger(topic, "Raft")
@@ -372,12 +372,19 @@ func (node *Node) StartNode(topic string, server *ServerNode, ourName string, ou
 		node.node_log("Error loading persistent store: %v\n", err)
 		return err
 	}
-	node.node_log("Log store - creating RPC handlers.\n")
 
-	node.node_log("Election timer starting.\n")
-	// Start the election timer running
-	node.electionTimer.Start()
-	go node.electionTimer.RunElectionTimer()
+	// Get the last term recorded in the log
+	_, lastLogTerm, err := node.log.LastLogEntryInfo()
+	if err != nil {
+		node.node_log("Error determining the last log entry: %v\n", err)
+		return err
+	}
+	if lastLogTerm > node.currentTerm {
+		node.node_log("WARNING: Last term found in log file is greater than stored in topic.  Defaulting to last value in log.")
+		node.currentTerm = lastLogTerm
+	}
+
+	node.node_log("Log store - creating RPC handlers.\n")
 
 	node.node_log("Node initialisation complete.\n")
 
@@ -389,6 +396,13 @@ func (node *Node) StartNode(topic string, server *ServerNode, ourName string, ou
 
 	}
 	return nil
+}
+
+func (node *Node) StartNode() {
+	node.node_log("Election timer starting.\n")
+	// Start the election timer running
+	node.electionTimer.Start()
+	go node.electionTimer.RunElectionTimer()
 }
 
 // ExpVar provides node stats when requested.

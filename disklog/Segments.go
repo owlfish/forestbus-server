@@ -21,7 +21,7 @@ import (
 const default_index_offset_density = 100
 
 // Used when first reading in the segment file.
-const default_file_buffer_size = 2 * 1024 * 1024
+const default_file_buffer_size = 20 * 1024 * 1024
 
 // Start size for the discard buffer when seeking
 const default_discard_buffer_size = 20 * 1024
@@ -102,7 +102,7 @@ func ExistingSegment(topicName string, fullfilename string, targetSize int) *Seg
 
 	seg := &Segment{filename: fullfilename, firstIndex: firstIndex, target_max_segment_size: targetSize}
 	seg.node_log = utils.GetTopicLogger(topicName, "Segment")
-	seg.node_log("Created existing segment, first index: %v for filename: %v\n", firstIndex, filename)
+	seg.node_log("Existing segment, first index: %v for filename: %v\n", firstIndex, filename)
 	seg.lastAccessTime = time.Now()
 	if err != nil {
 		seg.node_log("Warning: unable to stat segment file %v: %v", fullfilename, err)
@@ -122,6 +122,7 @@ func (seg *Segment) Open(validate bool) error {
 }
 
 func (seg *Segment) openWhileHoldingLock(validate bool) error {
+	seg.node_log("Opening segment file (validation %v): %v", validate, seg.filename)
 	if seg.segmentOpen {
 		seg.node_log("Unable to open segment - already open.\n")
 		return ERR_SEGMENT_ALREADY_OPEN

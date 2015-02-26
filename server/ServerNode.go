@@ -219,6 +219,11 @@ func NewServerNode(address, gobAddress, httpAddress, cborAddress, rootpath, clus
 		return nil, err
 	}
 
+	// Topics loaded - start them running
+	for _, topicNode := range srv.topics {
+		topicNode.StartNode()
+	}
+
 	// Start config change goroutine.
 	go srv.manageConfigurationChanges()
 	return srv, nil
@@ -400,7 +405,7 @@ func (srv *ServerNode) loadTopic(dataPath string, topic ConfigTopic) error {
 		peerConfigToUse = make(ConfigPeers, 0)
 	}
 
-	err = node.StartNode(topic.Name, srv, srv.address, peerConfigToUse, dataLog, topicStore)
+	err = node.SetupNode(topic.Name, srv, srv.address, peerConfigToUse, dataLog, topicStore)
 	if err != nil {
 		srv_log("Error starting node, stopping.")
 		return err

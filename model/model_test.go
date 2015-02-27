@@ -132,6 +132,7 @@ func TestAppendMessages(t *testing.T) {
 		t.Errorf("Error - should be two messages.")
 	}
 
+	//fmt.Printf("Msg1: %v\nMsg2: %v\nMessage: %v\n", msgs1, msgs2, newMsgs)
 	retrievedData, err := newMsgs.Payloads()
 	if err != nil {
 		t.Errorf("Error getting payloads: %v\n", err)
@@ -276,7 +277,7 @@ func TestSliceMessages(t *testing.T) {
 		t.Fatalf("Error from slice: %v\n", err)
 	}
 	if msgs2.GetCount() != 2 {
-		t.Error("Message count was not 2.")
+		t.Errorf("Message count was not 2 - was %v.  Original msgs %v, new is %v\n.", msgs2.GetCount(), msgs1, msgs2)
 	}
 
 	// Slice into zero

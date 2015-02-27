@@ -39,6 +39,10 @@ var EMPTY_MESSAGES = Messages{}
 type Messages struct {
 	Count int
 	Data  []byte
+	// offsets holds the location of the start of each message within Data
+	offsets []int
+	// indexed records whether the message offsets have been calculated
+	indexed bool
 }
 
 /*
@@ -105,11 +109,11 @@ func (msgs *Messages) GetCount() int {
 }
 
 /*
-ForEachMessage is a helper function that calls the provided action function once for each message contained in this Messages object.
+forEachMessage is a helper function that calls the provided action function once for each message contained in this Messages object.
 
 The action function will recieve the message index (local to this set of messages, starting at 0) and the offset into the slice of bytes that this message header starts at.  The action function must return a boolean - true to continue iterating over the rest of the messages, or false to abort the iteration.
 */
-func (msgs *Messages) ForEachMessage(action func(msgIndex int, msgOffset int) bool) error {
+func (msgs *Messages) forEachMessage(action func(msgIndex int, msgOffset int) bool) error {
 	dlen := len(msgs.Data) - MESSAGE_OVERHEAD
 	localCount := 0
 	for msgOffset := 0; msgOffset <= dlen; {
@@ -129,6 +133,7 @@ func (msgs *Messages) ForEachMessage(action func(msgIndex int, msgOffset int) bo
 		localCount++
 		msgOffset += MESSAGE_OVERHEAD + int(length)
 	}
+
 	return nil
 }
 
@@ -136,11 +141,14 @@ func (msgs *Messages) ForEachMessage(action func(msgIndex int, msgOffset int) bo
 countMessages is an internal function that counts how many messages are stored in the slice of bytes contained in this Messages object.  If crcCheck is true then the CRC value stored in the header will be compared to the CRC of the payload.
 
 countMessages results in the Messages.Count field containing the number of complete messages in the Messages object.  If a CRC check is done and any messages fail CRC validation then the ERR_CRC_MISMATCH error will be returned.
+
+countMessages also populates the offsets slice with message indexes.
 */
 func (msgs *Messages) countMessages(crcCheck bool) error {
 	msgs.Count = 0
 	crcError := false
-	err := msgs.ForEachMessage(func(forIndex int, offset int) bool {
+	msgs.offsets = make([]int, 0)
+	err := msgs.forEachMessage(func(forIndex int, offset int) bool {
 		if crcCheck {
 			length := int32(binary.LittleEndian.Uint32(msgs.Data[offset+MESSAGE_LENGTH_OFFSET:]))
 			CRC := uint32(binary.LittleEndian.Uint32(msgs.Data[offset+MESSAGE_CRC_OFFSET:]))
@@ -150,11 +158,13 @@ func (msgs *Messages) countMessages(crcCheck bool) error {
 			}
 		}
 		msgs.Count++
+		msgs.offsets = append(msgs.offsets, offset)
 		return true
 	})
 	if crcError {
 		return ERR_CRC_MISMATCH
 	}
+	msgs.indexed = true
 	return err
 }
 
@@ -163,25 +173,31 @@ GetMessageTerm returns the term of the message at the given local index (startin
 */
 func (msgs *Messages) GetMessageTerm(index int) (int64, error) {
 	var term int64
-	err := msgs.ForEachMessage(func(forIndex int, offset int) bool {
-		term = int64(binary.LittleEndian.Uint64(msgs.Data[offset+MESSAGE_TERM_OFFSET:]))
-		if forIndex == index {
-			return false
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return 0, err
 		}
-		return true
-	})
-	return term, err
+	}
+	offset := msgs.offsets[index]
+	term = int64(binary.LittleEndian.Uint64(msgs.Data[offset+MESSAGE_TERM_OFFSET:]))
+	return term, nil
 }
 
 /*
 SetMessageTerm sets the term of all messages in this set of Messages to the given value.
 */
 func (msgs *Messages) SetMessageTerm(newTerm int64) error {
-	err := msgs.ForEachMessage(func(forIndex int, offset int) bool {
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return err
+		}
+	}
+	for _, offset := range msgs.offsets {
 		binary.LittleEndian.PutUint64(msgs.Data[offset+MESSAGE_TERM_OFFSET:], uint64(newTerm))
-		return true
-	})
-	return err
+	}
+	return nil
 }
 
 /*
@@ -207,24 +223,31 @@ func (msgs *Messages) Slice(fromMessageIndex int, toMessageIndex int) (Messages,
 		return result, nil
 	}
 
-	err := msgs.ForEachMessage(func(forIndex int, offset int) bool {
-		length := int32(binary.LittleEndian.Uint32(msgs.Data[offset+MESSAGE_LENGTH_OFFSET:]))
-		endOfSlice = offset + int(length) + MESSAGE_OVERHEAD
-		if forIndex == fromMessageIndex {
-			dataSliceStart = offset
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return result, err
 		}
-		if forIndex >= (toMessageIndex - 1) {
-			return false
-		}
-		return true
-	})
-	if err != nil {
-		return result, err
+	}
+
+	dataSliceStart = msgs.offsets[fromMessageIndex]
+	if toMessageIndex >= msgs.Count {
+		endOfSlice = len(msgs.Data)
+	} else {
+		endOfSlice = msgs.offsets[toMessageIndex]
 	}
 
 	result.Data = msgs.Data[dataSliceStart:endOfSlice]
-	err = result.countMessages(false)
-	return result, err
+	// Create a new index from the old one
+	result.offsets = make([]int, toMessageIndex-fromMessageIndex)
+	newIndex := 0
+	for i := fromMessageIndex; i < toMessageIndex; i++ {
+		result.offsets[newIndex] = msgs.offsets[i] - dataSliceStart
+		newIndex++
+	}
+	result.indexed = true
+	result.Count = toMessageIndex - fromMessageIndex
+	return result, nil
 }
 
 /*
@@ -232,13 +255,35 @@ Join creates a new instance of Messages that contains both the original Messages
 */
 func (msgs *Messages) Join(extraMessages Messages) (Messages, error) {
 	newMessages := Messages{}
+
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return newMessages, err
+		}
+	}
+
+	if !extraMessages.indexed {
+		err := extraMessages.countMessages(false)
+		if err != nil {
+			return newMessages, err
+		}
+	}
 	newLength := len(msgs.Data) + len(extraMessages.Data)
 	newMessages.Data = make([]byte, newLength)
 	//log.Printf("Copying %v into new array", msgs.Data)
 	copy(newMessages.Data, msgs.Data)
 	copy(newMessages.Data[len(msgs.Data):], extraMessages.Data)
-	err := newMessages.countMessages(false)
-	return newMessages, err
+	// Copy the indexes
+	newMessages.offsets = make([]int, msgs.Count, msgs.Count+extraMessages.Count)
+	copy(newMessages.offsets, msgs.offsets)
+	origLen := len(msgs.Data)
+	for _, extraOffset := range extraMessages.offsets {
+		newMessages.offsets = append(newMessages.offsets, extraOffset+origLen)
+	}
+	newMessages.Count = msgs.Count + extraMessages.Count
+	newMessages.indexed = true
+	return newMessages, nil
 }
 
 /*
@@ -248,18 +293,40 @@ The byte data itself is shared between the Messages instance and the resulting P
 */
 func (msgs *Messages) Payloads() ([][]byte, error) {
 	results := make([][]byte, msgs.Count)
-	err := msgs.ForEachMessage(func(forIndex int, offset int) bool {
-		length := int32(binary.LittleEndian.Uint32(msgs.Data[offset+MESSAGE_LENGTH_OFFSET:]))
-		//log.Printf("Found message %v long\n", length)
-		results[forIndex] = msgs.Data[offset+MESSAGE_OVERHEAD : offset+MESSAGE_OVERHEAD+int(length)]
-		return true
-	})
-	return results, err
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return results, err
+		}
+	}
+
+	for i, offset := range msgs.offsets {
+		var endOfMsg int
+		if (i + 1) == msgs.Count {
+			endOfMsg = len(msgs.Data)
+		} else {
+			endOfMsg = msgs.offsets[i+1]
+		}
+		results[i] = msgs.Data[offset+MESSAGE_OVERHEAD : endOfMsg]
+	}
+
+	return results, nil
 }
 
 // RawData provides the underlying raw data of the Messages.
 func (msgs *Messages) RawData() []byte {
 	return msgs.Data
+}
+
+// Offsets returns the offset data for these messages.
+func (msgs *Messages) Offsets() ([]int, error) {
+	if !msgs.indexed {
+		err := msgs.countMessages(false)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return msgs.offsets, nil
 }
 
 /*
@@ -272,9 +339,10 @@ func MessagesFromClientData(data [][]byte) Messages {
 	}
 	result := Messages{}
 	result.Data = make([]byte, messagesSize)
+	result.offsets = make([]int, len(data))
 	// Turn each payload into a valid stream of messages
 	var offset int
-	for _, msgData := range data {
+	for i, msgData := range data {
 		// Record the version of the format
 		result.Data[offset] = 0
 		binary.LittleEndian.PutUint32(result.Data[offset+MESSAGE_LENGTH_OFFSET:], uint32(len(msgData)))
@@ -284,10 +352,11 @@ func MessagesFromClientData(data [][]byte) Messages {
 		binary.LittleEndian.PutUint32(result.Data[offset+MESSAGE_CRC_OFFSET:], crc32.ChecksumIEEE(msgData))
 		//log.Printf("Copying msgData %v to %v\n", msgData, offset+MESSAGE_OVERHEAD)
 		copy(result.Data[offset+MESSAGE_OVERHEAD:], msgData)
+		result.offsets[i] = offset
 		offset += MESSAGE_OVERHEAD + len(msgData)
 	}
-	// Do a count / validation on the results
-	result.countMessages(false)
+	result.indexed = true
+	result.Count = len(data)
 	return result
 }
 

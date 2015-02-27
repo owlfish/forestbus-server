@@ -24,10 +24,9 @@ for gets when it can be.  This significantly reduces the amount of file seeking 
 Note that locks are not required - all read / write locking has been done by the caller.
 */
 type MessageCache struct {
-	cache         []*CacheEntry
-	hits          int
-	slicesAvoided int
-	misses        int
+	cache  []*CacheEntry
+	hits   int
+	misses int
 }
 
 /*
@@ -38,7 +37,6 @@ type MessageCacheInfo struct {
 	CacheEntryInfo []CacheEntryInfo
 	TotalCacheSize int
 	Hits           int
-	SlicesAvoided  int
 	Misses         int
 }
 
@@ -77,10 +75,6 @@ func (msgCache *MessageCache) GetMessages(index int64, count int64) model.Messag
 				toReturn = localIndex + count
 			}
 			msgCache.hits++
-			if localIndex == 0 && count >= (cacheLength/2) {
-				msgCache.slicesAvoided++
-				return cacheE.cache
-			}
 			results, _ := cacheE.cache.Slice(int(localIndex), int(toReturn))
 			return results
 		}
@@ -113,7 +107,6 @@ func (msgCache *MessageCache) ExpVar() interface{} {
 	}
 	stats.TotalCacheSize = totalSize
 	stats.Hits = msgCache.hits
-	stats.SlicesAvoided = msgCache.slicesAvoided
 	stats.Misses = msgCache.misses
 	return stats
 }

@@ -454,10 +454,15 @@ func (seg *Segment) AppendMessages(msgs model.Messages) (appendIndex, lastIndex 
 	}
 
 	// Populate the offset index list
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
+	msgsOffsets, err := msgs.Offsets()
+	if err != nil {
+		seg.node_log("Error getting offsets for messages written: %v\n", err)
+		return appendIndex, seg.firstIndex + int64(seg.msgCount) - 1, false, err
+	}
+
+	for msgIndex, msgOffset := range msgsOffsets {
 		seg.appendOffsetToIndexHoldingLock(appendIndex+int64(msgIndex), seg.filePosition+int64(msgOffset))
-		return true
-	})
+	}
 
 	seg.msgCount += msgs.GetCount()
 	seg.fileSize += int64(written)

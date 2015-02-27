@@ -414,12 +414,9 @@ func TestExistingDiskLogSingleSegmentCorruptedCRC(t *testing.T) {
 	file, _ := os.Create(path.Join(tempDir, "0000000000000000001-forest-log"))
 	msgs := getMessages(10)
 	// Corrupt message index 9
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
-		if msgIndex == 8 {
-			msgs.RawData()[msgOffset+model.MESSAGE_CRC_OFFSET] += 1
-		}
-		return true
-	})
+	msgOffsets, _ := msgs.Offsets()
+	msgs.RawData()[msgOffsets[8]+model.MESSAGE_CRC_OFFSET] += 1
+
 	msgs.Write(file)
 	file.Close()
 
@@ -450,12 +447,9 @@ func TestExistingDiskLogSingleSegmentCorruptedLength(t *testing.T) {
 	file, _ := os.Create(path.Join(tempDir, "0000000000000000001-forest-log"))
 	msgs := getMessages(10)
 	// Corrupt message index 9
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
-		if msgIndex == 8 {
-			msgs.RawData()[msgOffset+model.MESSAGE_LENGTH_OFFSET] += 10
-		}
-		return true
-	})
+	msgOffsets, _ := msgs.Offsets()
+	msgs.RawData()[msgOffsets[8]+model.MESSAGE_LENGTH_OFFSET] += 10
+
 	msgs.Write(file)
 	file.Close()
 
@@ -486,12 +480,9 @@ func TestExistingDiskLogSingleSegmentCorruptedBody(t *testing.T) {
 	file, _ := os.Create(path.Join(tempDir, "0000000000000000001-forest-log"))
 	msgs := getMessages(10)
 	// Corrupt message index 9
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
-		if msgIndex == 8 {
-			msgs.RawData()[msgOffset+model.MESSAGE_OVERHEAD] += 1
-		}
-		return true
-	})
+	msgOffsets, _ := msgs.Offsets()
+	msgs.RawData()[msgOffsets[8]+model.MESSAGE_OVERHEAD] += 1
+
 	msgs.Write(file)
 	file.Close()
 

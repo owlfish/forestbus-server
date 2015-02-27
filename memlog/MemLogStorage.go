@@ -59,10 +59,15 @@ func (mlog *MemoryLogStorage) AppendMessages(msgs model.Messages) (lastIndex int
 	firstOffset := len(mlog.data)
 	msgs.Write(mlog)
 	// Populate the offsets
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
+	msgsOffsets, err := msgs.Offsets()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, msgOffset := range msgsOffsets {
 		mlog.offsets = append(mlog.offsets, firstOffset+msgOffset)
-		return true
-	})
+	}
+
 	return int64(len(mlog.offsets)) + mlog.firstIndex - 1, nil
 }
 
@@ -73,10 +78,15 @@ func (mlog *MemoryLogStorage) AppendFirstMessages(msgs model.Messages, leaderFir
 	mlog.firstIndex = leaderFirstIndex
 	msgs.Write(mlog)
 	// Populate the offsets
-	msgs.ForEachMessage(func(msgIndex int, msgOffset int) bool {
+	// Populate the offsets
+	msgsOffsets, err := msgs.Offsets()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, msgOffset := range msgsOffsets {
 		mlog.offsets = append(mlog.offsets, msgOffset)
-		return true
-	})
+	}
 	return int64(len(mlog.offsets)) + mlog.firstIndex - 1, nil
 }
 

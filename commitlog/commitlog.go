@@ -281,10 +281,10 @@ Queue is used to append client messages when the node is a leader.
 
 NOTE: The lock is not held in this method as we do not touch commitIndex or waitingReaders
 */
-func (clog *CommitLog) Queue(term int64, msgs [][]byte) (IDs []int64, err error) {
+func (clog *CommitLog) Queue(term int64, modelMsgs model.Messages) (IDs []int64, err error) {
 	//clog.node_log("Queueing messages: %v\n", msgs)
 
-	modelMsgs := model.MessagesFromClientData(msgs)
+	//modelMsgs := model.MessagesFromClientData(msgs)
 
 	if modelMsgs.GetCount() == 0 {
 		clog.node_log("No messages found from client for Queue.")
@@ -312,11 +312,12 @@ func (clog *CommitLog) Queue(term int64, msgs [][]byte) (IDs []int64, err error)
 
 	//time.Sleep(time.Millisecond * 500)
 
-	results := make([]int64, len(msgs))
+	numMessages := modelMsgs.GetCount()
+	results := make([]int64, numMessages)
 
 	// If log has one message, and two are added: lastIndex (3) - len (modelMsgs (2)) + 1 = 2
-	index := lastIndex - int64(modelMsgs.GetCount()) + 1
-	for i := 0; i < modelMsgs.GetCount(); i++ {
+	index := lastIndex - int64(numMessages) + 1
+	for i := 0; i < numMessages; i++ {
 		results[i] = index
 		index++
 	}

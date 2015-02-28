@@ -45,6 +45,12 @@ type Messages struct {
 	indexed bool
 }
 
+type MessageProvider interface {
+	Messages() [][]byte
+}
+
+type MessageProviders []MessageProvider
+
 /*
 MessagesFromReader reads messages from the io.Reader and returns the resulting Message objects, along with the number of bytes actually read and any error.
 
@@ -357,6 +363,51 @@ func MessagesFromClientData(data [][]byte) Messages {
 	}
 	result.indexed = true
 	result.Count = len(data)
+	return result
+}
+
+/*
+MessagesFromMessageProvider takes a slices of MessageProviders and returns the Forest Bus Messages representation of this data.
+*/
+func MessagesFromMessageProvider(dataSources MessageProviders) Messages {
+	// First iteration calculates the total size of the data.
+	totalMessageCount := 0
+	totalMessageLength := 0
+	for _, dataSource := range dataSources {
+		data := dataSource.Messages()
+		totalMessageCount += len(data)
+		for _, msg := range data {
+			totalMessageLength += len(msg)
+		}
+	}
+	// Now create the data structures
+	result := Messages{}
+	result.Data = make([]byte, totalMessageLength+(totalMessageCount*MESSAGE_OVERHEAD))
+	result.offsets = make([]int, totalMessageCount)
+
+	// Now copy the data and calculate the offsets
+	offset := 0
+	msgCount := 0
+
+	for _, dataSource := range dataSources {
+		data := dataSource.Messages()
+		for _, msgData := range data {
+			// Record the version of the format
+			result.Data[offset] = 0
+			binary.LittleEndian.PutUint32(result.Data[offset+MESSAGE_LENGTH_OFFSET:], uint32(len(msgData)))
+			// Placeholder for the Term
+			binary.LittleEndian.PutUint64(result.Data[offset+MESSAGE_TERM_OFFSET:], 0)
+			// The CRC
+			binary.LittleEndian.PutUint32(result.Data[offset+MESSAGE_CRC_OFFSET:], crc32.ChecksumIEEE(msgData))
+			//log.Printf("Copying msgData %v to %v\n", msgData, offset+MESSAGE_OVERHEAD)
+			copy(result.Data[offset+MESSAGE_OVERHEAD:], msgData)
+			result.offsets[msgCount] = offset
+			offset += MESSAGE_OVERHEAD + len(msgData)
+			msgCount++
+		}
+	}
+	result.indexed = true
+	result.Count = msgCount
 	return result
 }
 

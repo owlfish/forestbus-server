@@ -395,6 +395,7 @@ func (node *Node) SetupNode(topic string, server *ServerNode, ourName string, ou
 		node.log.Commit(node.commitIndex.GetCommitIndex())
 
 	}
+	node.state = FOLLOWER_NODE
 	return nil
 }
 
@@ -525,7 +526,7 @@ func (node *Node) ChangePeerConfiguration(newPeers ConfigPeers) {
 
 	if len(newPeers) == 0 {
 		node.state = ORPHAN_NODE
-	} else {
+	} else if node.state != STARTING_UP_NODE {
 		node.state = FOLLOWER_NODE
 	}
 

@@ -1,9 +1,10 @@
 package server
 
 import (
-	"log"
+	//"log"
 	//"runtime"
 	"code.google.com/p/forestbus.server/commitlog"
+	"code.google.com/p/forestbus.server/model"
 	"code.google.com/p/forestbus.server/utils"
 	"sync"
 	"time"
@@ -29,6 +30,10 @@ type writeResponse struct {
 type writeRequest struct {
 	replyChannel chan writeResponse
 	messages     [][]byte
+}
+
+func (wr *writeRequest) Messages() [][]byte {
+	return wr.messages
 }
 
 /*
@@ -78,6 +83,7 @@ func (agg *QueueWriteAggregator) Shutdown(notifier *utils.ShutdownNotifier) {
 func (agg *QueueWriteAggregator) writer() {
 	// List of messagse to be aggregated
 	messagesToBeAggregated := make([]writeRequest, 0, DEFAULT_MAX_BATCH_AGGREGATION)
+	messageProviders := make([]model.MessageProvider, 0, DEFAULT_MAX_BATCH_AGGREGATION)
 	totalMessages := 0
 	var request writeRequest
 	//deadline := time.NewTimer(DEFAULT_AGGREGATION_WINDOW)
@@ -91,6 +97,7 @@ func (agg *QueueWriteAggregator) writer() {
 		case request = <-agg.sendQueue:
 			// We have a new request
 			messagesToBeAggregated = append(messagesToBeAggregated, request)
+			messageProviders = append(messageProviders, &request)
 			totalMessages += len(request.messages)
 			gathering := true
 			// Wait for additional requests to arrive.
@@ -103,6 +110,7 @@ func (agg *QueueWriteAggregator) writer() {
 				case request = <-agg.sendQueue:
 					// We have additional requests, queue them.
 					messagesToBeAggregated = append(messagesToBeAggregated, request)
+					messageProviders = append(messageProviders, &request)
 					totalMessages += len(request.messages)
 					if totalMessages >= DEFAULT_TRIGGER_TOTAL_AGGREGATED_MESSAGES || len(messagesToBeAggregated) >= DEFAULT_MAX_BATCH_AGGREGATION {
 						gathering = false
@@ -114,8 +122,9 @@ func (agg *QueueWriteAggregator) writer() {
 					gathering = false
 				}
 			}
-			agg.sendMessages(messagesToBeAggregated, totalMessages)
+			agg.sendMessages(messagesToBeAggregated, messageProviders, totalMessages)
 			messagesToBeAggregated = messagesToBeAggregated[:0]
+			messageProviders = messageProviders[:0]
 			totalMessages = 0
 		}
 	}
@@ -123,23 +132,12 @@ func (agg *QueueWriteAggregator) writer() {
 }
 
 // sendMessages performs the actual aggregation, the write and the reply
-func (agg *QueueWriteAggregator) sendMessages(messagesToBeAggregated []writeRequest, totalMessages int) {
+func (agg *QueueWriteAggregator) sendMessages(messagesToBeAggregated []writeRequest, messageProviders []model.MessageProvider, totalMessages int) {
 	//log.Printf("Aggregating %v batches into one batch of %v messages\n", len(messagesToBeAggregated), totalMessages)
-	aggregatedMessages := make([][]byte, totalMessages)
-	batchLengths := make([]int, len(messagesToBeAggregated))
-	cumulativeLength := 0
-	for i, request := range messagesToBeAggregated {
-		length := copy(aggregatedMessages[cumulativeLength:], request.messages)
-		batchLengths[i] = length
-		cumulativeLength += length
-	}
-
-	if cumulativeLength != totalMessages {
-		log.Fatalf("Cumulative length of %v did not match total messages %v\n", cumulativeLength, totalMessages)
-	}
-
 	// Now try the append.
-	IDs, err := agg.node.log.Queue(agg.node.getTerm(), aggregatedMessages)
+	msgs := model.MessagesFromMessageProvider(messageProviders)
+
+	IDs, err := agg.node.log.Queue(agg.node.getTerm(), msgs)
 
 	// Record some stats
 	agg.statLock.Lock()
@@ -151,10 +149,12 @@ func (agg *QueueWriteAggregator) sendMessages(messagesToBeAggregated []writeRequ
 	// Send the results to people.
 
 	idoffset := 0
-	if err == nil && len(IDs) == cumulativeLength {
+	if err == nil && len(IDs) == msgs.GetCount() {
 		// We have the results we expect - send them back.
-		for i, request := range messagesToBeAggregated {
-			request.replyChannel <- writeResponse{IDs: IDs[idoffset : idoffset+batchLengths[i]], Error: err}
+		for _, request := range messagesToBeAggregated {
+			batchLength := len(request.messages)
+			request.replyChannel <- writeResponse{IDs: IDs[idoffset : idoffset+batchLength], Error: err}
+			idoffset += batchLength
 		}
 		// Tell our peers about the append.
 		agg.node.SendLogsToPeers()

@@ -28,6 +28,9 @@ const (
 
 	// If CNF_Set_Topic is set then the configuration change includes ensuring a topic exists.
 	CNF_Set_Topic
+
+	// If CNF_Remove_Topic is set then the configuration change lists the topics to be removed.
+	CNF_Remove_Topic
 )
 
 // CONFIG_SUB_DIRECTORY is the name of the directory within the data path that holds the configuration files.

@@ -16,6 +16,7 @@ The commands are:
 
 	peers		Sets the peer list for the given node or cluster ID.
 	topic		Creates or updates the configuration of a given topic.
+	removetopic Removes the topic configuration from the cluster.
 
 Use “forest-admin -help [command]” for more information about a command.
 
@@ -133,6 +134,14 @@ func main() {
 		err = SendTopic(*clusterId, nodesToConfigure, nonFlagArgs[1], *segmentSize, *segmentCleanupAge)
 		if err != nil {
 			fmt.Printf("Error handling topic request: %v\n", err)
+		}
+	case "removetopic":
+		topicFlags := &flag.FlagSet{Usage: PrintRemovetopicHelp}
+		topicFlags.Parse(nonFlagArgs[2:])
+
+		err = SendRemoveTopic(*clusterId, nodesToConfigure, nonFlagArgs[1])
+		if err != nil {
+			fmt.Printf("Error handling removetopic request: %v\n", err)
 		}
 	default:
 		fmt.Printf("Command %v not supported.\n", nonFlagArgs[0])
@@ -262,6 +271,15 @@ func SendTopic(clusterId string, nodesToConfigure []string, topicName string, se
 	return sendConfiguration(nodesToConfigure, newConfig)
 }
 
+func SendRemoveTopic(clusterId string, nodesToConfigure []string, topicName string) error {
+	newConfig := server.GetEmptyConfiguration()
+
+	newConfig.Cluster_ID = clusterId
+	newConfig.Scope = server.CNF_Remove_Topic
+	newConfig.Topics[topicName] = server.ConfigTopic{Name: topicName}
+	return sendConfiguration(nodesToConfigure, newConfig)
+}
+
 func PrintUsage() {
 	nonFlagArgs := flag.Args()
 	if len(nonFlagArgs) == 0 {
@@ -294,6 +312,7 @@ The commands are:
 
 	peers		Sets the peer list for the given node or cluster ID.
 	topic		Creates or updates the configuration of a given topic.
+	removetopic Removes the topic from the node or cluster.
 
 Use “forest-admin -help [command]” for more information about a command.
 
@@ -341,6 +360,21 @@ Parameters:
      -segmentCleanupAge  The age in hours after which segments can be cleaned
                          (deleted).  Set to 0 to disable clean-up.
 
+`)
+}
+
+func PrintRemovetopicHelp() {
+	fmt.Printf(`The forest-admin removetopic command removes topics.
+Usage:
+
+     forest-admin -id <clusterID>] [-node node1[,...]] removetopic <topicName> \
+
+If the topic doesn't exist, no action is taken.  If the topic exists then it is
+shutdown gracefully and removed from the configuration.  The data for the topic
+remains and must be deleted manually.
+
+If a topic is removed accidentally it can be reinstated with no data loss by 
+using the topic command.
 `)
 
 }

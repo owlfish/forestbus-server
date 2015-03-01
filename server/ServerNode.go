@@ -263,7 +263,8 @@ func (srv *ServerNode) manageConfigurationChanges() {
 							topicConfig.SegmentSize = newTopic.SegmentSize
 						}
 						srv.config.Topics[newTopic.Name] = topicConfig
-						err = srv.createTopic(topicConfig)
+						node, err := srv.createTopic(topicConfig)
+						node.StartNode()
 						if err != nil {
 							break
 						}
@@ -292,6 +293,20 @@ func (srv *ServerNode) manageConfigurationChanges() {
 							srv.lock.RUnlock()
 						}
 
+					}
+				}
+			} else if newConfig.Scope&CNF_Remove_Topic != 0 {
+				srv_log("Topic removal")
+				for _, removedTopic := range newConfig.Topics {
+					if srv.config.Topics.Contains(removedTopic.Name) {
+						currentTopic := srv.config.Topics[removedTopic.Name]
+						delete(srv.config.Topics, removedTopic.Name)
+						err = srv.removeTopic(currentTopic)
+						if err != nil {
+							break
+						}
+					} else {
+						srv_log("Topic %v not present - no removal required.\n", removedTopic.Name)
 					}
 				}
 			}
@@ -355,7 +370,7 @@ func (srv *ServerNode) loadExistingTopics() error {
 		}
 		for _, topicName := range names {
 			if srv.config.Topics.Contains(topicName) {
-				err = srv.loadTopic(dataPath, srv.config.Topics[topicName])
+				_, err = srv.loadTopic(dataPath, srv.config.Topics[topicName])
 				if err != nil {
 					srv_log("Error loading topic %v from data path %v: %v\n", topicName, dataPath, err)
 					return err
@@ -371,7 +386,7 @@ func (srv *ServerNode) loadExistingTopics() error {
 		_, ok := topicsLoaded[topic.Name]
 		if !ok {
 			srv_log("WARNING: Topic %v configured but not found - creating.\n", topic.Name)
-			err := srv.createTopic(topic)
+			_, err := srv.createTopic(topic)
 			if err != nil {
 				srv_log("Error creating topic: %v\n", err)
 				return err
@@ -381,20 +396,20 @@ func (srv *ServerNode) loadExistingTopics() error {
 	return nil
 }
 
-func (srv *ServerNode) loadTopic(dataPath string, topic ConfigTopic) error {
+func (srv *ServerNode) loadTopic(dataPath string, topic ConfigTopic) (*Node, error) {
 	topicPath := path.Join(dataPath, topic.Name)
 	dataLog := &commitlog.CommitLog{}
 	topicStore := disklog.NewDiskTopicPersistentStore(topicPath)
 	dataStore, err := disklog.LoadLog(topic.Name, topicPath, disklog.SetTargetSegmentSize(topic.SegmentSize), disklog.SetSegmentCleanupAge(topic.SegmentCleanupAge))
 	if err != nil {
 		srv_log("Error loading disk log: %v\n", err)
-		return err
+		return nil, err
 	}
 
 	err = dataLog.SetupLog(topic.Name, dataStore)
 	if err != nil {
 		srv_log("Error setting up log: %v\n", err)
-		return err
+		return nil, err
 	}
 
 	node := &Node{}
@@ -408,34 +423,58 @@ func (srv *ServerNode) loadTopic(dataPath string, topic ConfigTopic) error {
 	err = node.SetupNode(topic.Name, srv, srv.address, peerConfigToUse, dataLog, topicStore)
 	if err != nil {
 		srv_log("Error starting node, stopping.")
-		return err
+		return nil, err
 	}
 	// Adding this topic
 	srv.lock.Lock()
 	srv.topics[topic.Name] = node
 	// Update the sorted list of topic names
+	srv.updateTopicNameListHoldingLock()
+	srv.lock.Unlock()
+	srv_log("Topic %v loaded and ready to serve\n", topic.Name)
+	return node, nil
+}
+
+func (srv *ServerNode) updateTopicNameListHoldingLock() {
 	srv.topicNameList = make([]string, 0, len(srv.topics))
 	for k := range srv.topics {
 		srv.topicNameList = append(srv.topicNameList, k)
 	}
 	sort.Strings(srv.topicNameList)
-	srv.lock.Unlock()
-	srv_log("Topic %v loaded and ready to serve\n", topic.Name)
-	return nil
 }
 
-func (srv *ServerNode) createTopic(topic ConfigTopic) error {
+func (srv *ServerNode) createTopic(topic ConfigTopic) (*Node, error) {
 	topicDir := path.Join(srv.config.Data_Paths[len(srv.config.Data_Paths)-1], topic.Name)
 	err := os.Mkdir(topicDir, os.ModePerm)
 	if err != nil {
 		if !os.IsExist(err) {
 			srv_log("Error creating new topic directory %v: %v\n", topicDir, err)
-			return err
+			return nil, err
 		} else {
 			srv_log("Topic directory already exists - loading.")
 		}
 	}
 	return srv.loadTopic(srv.config.Data_Paths[len(srv.config.Data_Paths)-1], topic)
+}
+
+/*
+removeTopic shutdowns the currently running topic node and removes the topic from the configuration.
+This does not delete any data.
+*/
+func (srv *ServerNode) removeTopic(topic ConfigTopic) error {
+	// Remove the topic from our list
+	srv.lock.Lock()
+	node := srv.topics[topic.Name]
+	delete(srv.topics, topic.Name)
+	// Update the sorted list of topic names
+	srv.updateTopicNameListHoldingLock()
+	srv.lock.Unlock()
+	// Ask the node to shutdown
+	notifier := utils.NewShutdownNotifier(1)
+	node.Shutdown(notifier)
+	notifier.WaitForAllDone()
+	srv_log("Topic %v removed - data can now be deleted.\n", topic.Name)
+	return nil
 }
 
 /*

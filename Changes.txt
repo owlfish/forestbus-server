@@ -1,8 +1,21 @@
-Forest Bus (Version 1.0)
+Forest Bus (Version 1.1)
 ------------------------
+
+Version 1.1
+-----------
+
+New Features
+------------
+
+ - Added support for removing topics
+
+Bug Fixes
+---------
+
+ - Fix for IDs being returned incorrectly when queueing from multiple clients.
+
 
 Version 1.0
 -----------
 
 Initial release.
-

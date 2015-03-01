@@ -1,4 +1,4 @@
-Forest Bus (Version 1.0)
+Forest Bus (Version 1.1)
 ------------------------
 Forest Bus is a message bus based on a persistent distributed commit log, very 
 much inspired by Apache Kafka.  Forest Bus is written in Go with client 
@@ -9,6 +9,11 @@ within a topic.  This allows clients to bootstrap over historical data,
 reprocess messages following software fixes or enhancements and catch-up 
 following outages.  Forest Bus allows clients to read from any node in a 
 cluster, helping to distribute the load of serving messages.
+
+Upgrading
+---------
+Version 1.1 is backwards compatible with version 1.0 of both the clients and
+servers.
 
 Installation (binary distribution)
 ----------------------------------

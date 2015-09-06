@@ -2,7 +2,7 @@ package disklog
 
 import (
 	//"log"
-	"code.google.com/p/forestbus.server/model"
+	"github.com/owlfish/forestbus-server/model"
 )
 
 type CacheEntry struct {

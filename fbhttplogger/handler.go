@@ -7,8 +7,8 @@ The NewHandler function takes a http.Handler and a forestbus.MessageBatcher and 
 package fbhttplogger
 
 import (
-	"code.google.com/p/forestbus"
 	"encoding/json"
+	"github.com/owlfish/forestbus"
 	"log"
 	"net/http"
 )

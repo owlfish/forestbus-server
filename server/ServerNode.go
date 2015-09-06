@@ -17,11 +17,11 @@ For each topic (Node) additional objects are used.
 package server
 
 import (
-	"code.google.com/p/forestbus.server/commitlog"
-	"code.google.com/p/forestbus.server/disklog"
-	"code.google.com/p/forestbus.server/utils"
-	"code.google.com/p/forestbus/rapi"
 	"errors"
+	"github.com/owlfish/forestbus-server/commitlog"
+	"github.com/owlfish/forestbus-server/disklog"
+	"github.com/owlfish/forestbus-server/utils"
+	"github.com/owlfish/forestbus/rapi"
 	"github.com/ugorji/go/codec"
 	"net"
 	"net/http"
@@ -121,7 +121,7 @@ func NewServerPeer(ourname, name string) *ServerPeer {
 
 /*
 
-*/
+ */
 func (peer *ServerPeer) manageOutboundConnections(clusterID string) {
 	var notifier *utils.ShutdownNotifier
 	for {

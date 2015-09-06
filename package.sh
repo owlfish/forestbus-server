@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Building source distribution"
-tar -cf forestbus-server-src.tar src/code.google.com/p/forestbus.server Changes.txt LICENSE.txt README.txt
+tar -cf forestbus-server-src.tar src/github.com/owlfish/forestbus-server Changes.txt LICENSE.txt README.txt
 
 gzip -9 forestbus-server-src.tar
 

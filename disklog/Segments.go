@@ -2,10 +2,10 @@ package disklog
 
 import (
 	"bufio"
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus.server/utils"
 	"errors"
 	"fmt"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus-server/utils"
 	"hash/crc32"
 	"io"
 	"math"

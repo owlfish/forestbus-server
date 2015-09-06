@@ -3,9 +3,9 @@ package server
 import (
 	//"log"
 	//"runtime"
-	"code.google.com/p/forestbus.server/commitlog"
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus.server/utils"
+	"github.com/owlfish/forestbus-server/commitlog"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus-server/utils"
 	"sync"
 	"time"
 )

@@ -2,8 +2,8 @@ package disklog
 
 import (
 	"bytes"
-	"code.google.com/p/forestbus.server/commitlog"
-	"code.google.com/p/forestbus.server/model"
+	"github.com/owlfish/forestbus-server/commitlog"
+	"github.com/owlfish/forestbus-server/model"
 	"io/ioutil"
 	"os"
 	"path"

@@ -40,16 +40,16 @@ top of the Forest Bus directory.
 The Forest Bus depenencies can then be installed (Mercurial and Git clients 
 will be required):
 
-go get code.google.com/p/forestbus
+go get github.com/owlfish/forestbus
 go get github.com/ugorji/go/codec
 
 Each binary can then be built in turn:
 
-go install code.google.com/p/forestbus.server/cmd/forest-admin
-go install code.google.com/p/forestbus.server/cmd/forest-bus-server
-go install code.google.com/p/forestbus.server/cmd/forest-get
-go install code.google.com/p/forestbus.server/cmd/forest-send
-go install code.google.com/p/forestbus.server/cmd/forest-test-send
+go install github.com/owlfish/forestbus-server/cmd/forest-admin
+go install github.com/owlfish/forestbus-server/cmd/forest-bus-server
+go install github.com/owlfish/forestbus-server/cmd/forest-get
+go install github.com/owlfish/forestbus-server/cmd/forest-send
+go install github.com/owlfish/forestbus-server/cmd/forest-test-send
   
 Notes
 -----

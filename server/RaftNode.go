@@ -1,8 +1,8 @@
 package server
 
 import (
-	"code.google.com/p/forestbus.server/commitlog"
-	"code.google.com/p/forestbus.server/utils"
+	"github.com/owlfish/forestbus-server/commitlog"
+	"github.com/owlfish/forestbus-server/utils"
 	"math"
 	"sort"
 	"sync"

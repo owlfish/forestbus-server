@@ -1,8 +1,8 @@
 package commitlog
 
 import (
-	"code.google.com/p/forestbus.server/memlog"
-	"code.google.com/p/forestbus.server/model"
+	"github.com/owlfish/forestbus-server/memlog"
+	"github.com/owlfish/forestbus-server/model"
 	"runtime"
 	"testing"
 	"time"

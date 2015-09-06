@@ -15,9 +15,9 @@ Usage flags are:
 package main
 
 import (
-	"code.google.com/p/forestbus"
 	"flag"
 	"fmt"
+	"github.com/owlfish/forestbus"
 	"log"
 	"os"
 	"runtime"

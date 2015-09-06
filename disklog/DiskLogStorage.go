@@ -6,9 +6,9 @@ ID included in the file.
 package disklog
 
 import (
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus.server/utils"
 	"errors"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus-server/utils"
 	"log"
 	"path"
 	"path/filepath"

@@ -12,9 +12,9 @@ forest-get is a binary command line tool for retrieving messages from a cluster.
 package main
 
 import (
-	"code.google.com/p/forestbus"
 	"flag"
 	"fmt"
+	"github.com/owlfish/forestbus"
 	"os"
 	"runtime"
 )

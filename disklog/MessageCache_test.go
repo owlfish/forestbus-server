@@ -1,7 +1,7 @@
 package disklog
 
 import (
-	"code.google.com/p/forestbus.server/model"
+	"github.com/owlfish/forestbus-server/model"
 	"testing"
 )
 

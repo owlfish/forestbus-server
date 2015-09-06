@@ -1,7 +1,7 @@
 package server
 
 import (
-	"code.google.com/p/forestbus/rapi"
+	"github.com/owlfish/forestbus/rapi"
 )
 
 // ClientRequestSendMessages checks we are the leader and then queues the messages

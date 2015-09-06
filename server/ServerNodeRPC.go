@@ -1,8 +1,8 @@
 package server
 
 import (
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus/rapi"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus/rapi"
 )
 
 // RPCHandler holds all exposed RPC methods.

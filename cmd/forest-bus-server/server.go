@@ -13,9 +13,9 @@ Usage flags are:
 package main
 
 import (
-	"code.google.com/p/forestbus.server/server"
 	"expvar"
 	"flag"
+	"github.com/owlfish/forestbus-server/server"
 	"log"
 	"os"
 	"os/signal"

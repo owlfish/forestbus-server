@@ -4,9 +4,9 @@ The commitlog package contains the raft commit log manipulation logic.  It doesn
 package commitlog
 
 import (
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus.server/utils"
 	"errors"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus-server/utils"
 	"sync"
 	"time"
 )

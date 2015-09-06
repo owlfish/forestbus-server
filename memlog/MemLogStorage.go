@@ -5,9 +5,9 @@ package memlog
 
 import (
 	"bytes"
-	"code.google.com/p/forestbus.server/model"
-	"code.google.com/p/forestbus.server/utils"
 	"errors"
+	"github.com/owlfish/forestbus-server/model"
+	"github.com/owlfish/forestbus-server/utils"
 )
 
 /*

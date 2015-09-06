@@ -10,9 +10,9 @@ package main
 
 import (
 	"bufio"
-	"code.google.com/p/forestbus"
 	"flag"
 	"fmt"
+	"github.com/owlfish/forestbus"
 	"log"
 	"os"
 	"os/signal"

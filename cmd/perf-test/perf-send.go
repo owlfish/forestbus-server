@@ -15,10 +15,10 @@ Usage flags are:
 package main
 
 import (
-	"code.google.com/p/forestbus"
 	"encoding/csv"
 	"flag"
 	"fmt"
+	"github.com/owlfish/forestbus"
 	"log"
 	"os"
 	"runtime"
